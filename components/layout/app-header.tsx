@@ -2,7 +2,9 @@
 
 import { useAuth } from '@/lib/auth/auth-context';
 import { Button } from '@/components/ui/button';
+import { NavLinks } from './nav-links';
 import { useState } from 'react';
+import Link from 'next/link';
 
 export function AppHeader() {
   const { user, signOut } = useAuth();
@@ -21,11 +23,14 @@ export function AppHeader() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <div className="flex items-center">
-            <h1 className="text-xl font-bold text-gray-900">NexusGov AI</h1>
-            <span className="ml-3 px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded">
-              EU GDPR
-            </span>
+          <div className="flex items-center gap-8">
+            <div className="flex items-center">
+              <h1 className="text-xl font-bold text-gray-900">NexusGov AI</h1>
+              <span className="ml-3 px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded">
+                EU GDPR
+              </span>
+            </div>
+            <NavLinks />
           </div>
 
           {/* User menu */}
@@ -69,25 +74,13 @@ export function AppHeader() {
                       )}
                     </div>
 
-                    <button
-                      onClick={() => {
-                        setShowUserMenu(false);
-                        // TODO: Navigate to profile
-                      }}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      Min profil
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setShowUserMenu(false);
-                        // TODO: Navigate to settings
-                      }}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    <Link
+                      href="/settings"
+                      onClick={() => setShowUserMenu(false)}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     >
                       Inställningar
-                    </button>
+                    </Link>
 
                     {(user.role === 'SUPER_ADMIN' || user.role === 'ORG_ADMIN') && (
                       <button
