@@ -10,12 +10,23 @@
 - [x] **Project Structure** - Organized folders: lib, components, types, hooks
 - [x] **Security Setup** - `.env.local` gitignored, SSH key in GitHub Secrets
 
+### Authentication & User Management
+- [x] **Firebase Auth Context** - Session management, user state
+- [x] **Sign-In/Sign-Up Forms** - Email/password + Google OAuth
+- [x] **Protected Routes** - Auth guards with org membership checks
+- [x] **User Profile Display** - Header with user menu
+- [x] **Swedish Localization** - Error messages in Swedish
+
 ### Core AI Features
 - [x] **OpenRouter Integration** - Multi-model AI access client
 - [x] **AI Model Configuration** - 8 models with GDPR compliance metadata
 - [x] **Chat API Endpoint** - `/api/chat` with PII screening
 - [x] **Model Filtering** - STRICT (EU only) and OPEN (EU + US ZDR) modes
 - [x] **Cost Calculation** - Per-message token usage and cost tracking
+- [x] **Chat Interface** - Full-featured UI with model selector
+- [x] **Conversation Persistence** - Auto-save to Firestore
+- [x] **Conversation History** - Sidebar with all past chats
+- [x] **Auto Title Generation** - From first user message
 
 ### GDPR Compliance
 - [x] **Data Residency Labels** - Visual indicators (Green = EU, Yellow = US ZDR)
@@ -24,17 +35,28 @@
 - [x] **Anonymization** - One-click PII removal tool
 - [x] **Firestore Security Rules** - Multi-tenant access control
 
+### Database & Persistence
+- [x] **Conversation CRUD** - Create, read, delete conversations
+- [x] **Message Storage** - Firestore subcollections
+- [x] **Metadata Tracking** - Tokens, cost, message count per conversation
+- [x] **User Document Creation** - Auto-create on first sign-in
+
 ### UI Components
 - [x] **Chat Interface** - Full-featured chat UI with model selector
+- [x] **Conversation Sidebar** - History, stats, delete functionality
+- [x] **App Header** - User menu, profile, sign-out
 - [x] **PII Warning System** - Real-time warnings as user types
 - [x] **Model Selector** - Dropdown with all available AI models
 - [x] **Residency Indicator** - Color-coded badges (EU/US ZDR)
 - [x] **Button & Input Components** - Reusable UI primitives
+- [x] **Auth Forms** - Sign-in, sign-up with validation
+- [x] **Loading States** - Spinners, skeleton screens
 
 ### Documentation
 - [x] **README.md** - Project overview and getting started
 - [x] **DEPLOYMENT.md** - VPS deployment instructions
 - [x] **SECURITY.md** - API key management best practices
+- [x] **PROGRESS.md** - Development roadmap and status
 - [x] **Firestore Rules** - Multi-tenant security rules
 - [x] **Type Definitions** - Complete TypeScript types for all domain models
 
@@ -42,10 +64,10 @@
 
 ## In Progress 🚧
 
-### Testing
-- [ ] **Local Development Server** - Test chat interface locally
-- [ ] **VPS Deployment** - Copy `.env.local` to VPS and trigger deployment
-- [ ] **API Testing** - Test all AI models with real queries
+### Organization Management
+- [ ] **Organization Creation UI** - Form to create municipality/sub-units
+- [ ] **Admin Dashboard** - Manage users, budgets, settings
+- [ ] **User Invitations** - Invite users to organizations
 
 ---
 
