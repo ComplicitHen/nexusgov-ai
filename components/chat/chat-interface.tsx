@@ -5,31 +5,42 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AI_MODELS, getModelById, getResidencyColor, getResidencyLabel } from '@/lib/ai/models';
 import { detectPII, anonymizePII, getPIIWarningMessage } from '@/lib/utils/pii-detector';
+import { useConversation } from '@/hooks/use-conversation';
+import { useAuth } from '@/lib/auth/auth-context';
+import { Message } from '@/types';
 
-interface Message {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  timestamp: Date;
-  tokens?: { input: number; output: number };
-  cost?: number;
-  piiWarning?: string;
+interface ChatInterfaceProps {
+  conversationId?: string;
+  onConversationCreated?: (id: string) => void;
 }
 
-export function ChatInterface() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'system',
-      content:
-        'Välkommen till NexusGov AI! Jag är din AI-assistent. Hur kan jag hjälpa dig idag?',
-      timestamp: new Date(),
-    },
-  ]);
+export function ChatInterface({ conversationId, onConversationCreated }: ChatInterfaceProps) {
+  const { user } = useAuth();
+  const { messages, addMessageToConversation, createNewConversation, setMessages } =
+    useConversation(conversationId);
+
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState('mistral-large-eu');
   const [enablePIIScreening, setEnablePIIScreening] = useState(true);
   const [piiWarning, setPIIWarning] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Initialize with welcome message
+  useEffect(() => {
+    if (messages.length === 0) {
+      setMessages([
+        {
+          id: 'welcome',
+          conversationId: '',
+          role: 'system',
+          content: 'Välkommen till NexusGov AI! Jag är din AI-assistent. Hur kan jag hjälpa dig idag?',
+          createdAt: new Date(),
+          piiDetected: false,
+        } as Message,
+      ]);
+    }
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -65,25 +76,45 @@ export function ChatInterface() {
   };
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || !user) return;
 
-    const userMessage: Message = {
-      role: 'user',
-      content: input,
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
+    const userMessageContent = input;
     setInput('');
     setIsLoading(true);
     setPIIWarning(null);
 
     try {
+      // Create conversation if needed
+      let convId = conversationId;
+      if (!convId) {
+        convId = await createNewConversation(selectedModel);
+        onConversationCreated?.(convId);
+      }
+
+      // Add user message to UI immediately
+      const tempUserMessage: Message = {
+        id: `temp-user-${Date.now()}`,
+        conversationId: convId,
+        role: 'user',
+        content: userMessageContent,
+        createdAt: new Date(),
+        piiDetected: false,
+      };
+      setMessages((prev) => [...prev, tempUserMessage]);
+
+      // Save user message to Firestore
+      await addMessageToConversation(convId, {
+        role: 'user',
+        content: userMessageContent,
+        piiDetected: false,
+      });
+
+      // Call AI API
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [...messages, userMessage].map((m) => ({
+          messages: [...messages, tempUserMessage].map((m) => ({
             role: m.role,
             content: m.content,
           })),
@@ -96,38 +127,42 @@ export function ChatInterface() {
 
       if (!response.ok) {
         if (data.error === 'PII_DETECTED') {
-          setMessages((prev) => [
-            ...prev,
-            {
-              role: 'system',
-              content: `⚠️ ${data.message}\n\n${data.suggestion}`,
-              timestamp: new Date(),
-            },
-          ]);
+          const systemMessage: Message = {
+            id: `system-${Date.now()}`,
+            conversationId: convId,
+            role: 'system',
+            content: `⚠️ ${data.message}\n\n${data.suggestion}`,
+            createdAt: new Date(),
+            piiDetected: true,
+          };
+          setMessages((prev) => [...prev, systemMessage]);
         } else {
           throw new Error(data.message || 'Failed to send message');
         }
       } else {
-        const assistantMessage: Message = {
+        // Save assistant message to Firestore
+        await addMessageToConversation(convId, {
           role: 'assistant',
           content: data.message.content,
-          timestamp: new Date(),
-          tokens: data.usage,
+          tokens: {
+            input: data.usage.prompt_tokens,
+            output: data.usage.completion_tokens,
+          },
           cost: data.cost,
+          piiDetected: data.piiDetection?.hasPII || false,
           piiWarning: data.piiWarning,
-        };
-
-        setMessages((prev) => [...prev, assistantMessage]);
+        });
       }
     } catch (error: any) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'system',
-          content: `Error: ${error.message}`,
-          timestamp: new Date(),
-        },
-      ]);
+      const errorMessage: Message = {
+        id: `error-${Date.now()}`,
+        conversationId: conversationId || '',
+        role: 'system',
+        content: `Error: ${error.message}`,
+        createdAt: new Date(),
+        piiDetected: false,
+      };
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
@@ -144,7 +179,7 @@ export function ChatInterface() {
   const residencyColor = model ? getResidencyColor(model.dataResidency) : 'gray';
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col flex-1 bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 p-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
@@ -220,10 +255,10 @@ export function ChatInterface() {
               >
                 <div className="whitespace-pre-wrap">{message.content}</div>
 
-                {message.role === 'assistant' && message.cost && (
+                {message.role === 'assistant' && message.cost !== undefined && (
                   <div className="mt-2 pt-2 border-t border-gray-200 text-xs text-gray-500">
                     Tokens: {message.tokens?.input || 0} in, {message.tokens?.output || 0} out
-                    | Kostnad: {message.cost.toFixed(4)} SEK
+                    | Kostnad: {(message.cost || 0).toFixed(4)} SEK
                   </div>
                 )}
 
