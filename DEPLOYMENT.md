@@ -58,7 +58,19 @@ pm2 restart nexusgov-ai
 
 ### Environment Variables
 
-Create a `.env.local` file on the VPS at `/root/nexusgov-ai/.env.local`:
+**IMPORTANT**: You need to manually copy `.env.local` to the VPS:
+
+```bash
+# From your local machine, copy .env.local to VPS
+scp .env.local root@65.109.239.13:/root/nexusgov-ai/.env.local
+
+# Or manually create it on the VPS:
+ssh root@65.109.239.13
+cd /root/nexusgov-ai
+nano .env.local
+```
+
+Then add these environment variables to `/root/nexusgov-ai/.env.local`:
 
 ```bash
 # Database (Firestore/PostgreSQL)
