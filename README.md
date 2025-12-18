@@ -1,36 +1,155 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NexusGov AI
+
+**Compliance-First AI Orchestration Platform for the Public Sector**
+
+A secure, multi-tenant web portal designed for Swedish municipalities and public institutions to monitor, access, and manage various AI models while enforcing GDPR compliance, cost control, and data sovereignty.
+
+## Features
+
+### Core Capabilities
+- **Multi-Tenant Organization Management**: Hierarchical structure (Municipality → Sub-units → Users)
+- **GDPR Compliance Layer**: EU-hosted models, PII screening, zero data retention (ZDR)
+- **RAG (Retrieval-Augmented Generation)**: Upload documents, ask questions with verifiable citations
+- **Multi-Model AI Access**: Access to multiple AI models via OpenRouter
+- **Cost Control**: Budget management at org and sub-unit levels
+- **Custom AI Assistants**: No-code builder for department-specific bots
+- **Meeting Intelligence**: Audio transcription with Whisper, automated minutes generation
+- **Audit Logging**: Complete DPO audit trail for compliance
+
+### GDPR Features
+- **Model Filtering**: Restrict to EU-hosted models in strict mode
+- **PII Detection**: Automatic screening for Swedish SSNs (personnummer), names, addresses
+- **Data Residency**: Visual indicators showing where data is processed
+- **Citation System**: Every AI response links to source documents with highlighted excerpts
+
+## Tech Stack
+
+- **Frontend**: Next.js 16 + TypeScript + Tailwind CSS
+- **Authentication**: Firebase Auth (EU region) + BankID/SAML integration
+- **Database**: PostgreSQL/Firestore
+- **Vector Database**: Qdrant (for RAG)
+- **AI Orchestration**: OpenRouter API
+- **Deployment**: Auto-deploy to Hetzner VPS via GitHub Actions
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+- Node.js 18+
+- npm or pnpm
+- PostgreSQL (or Firestore)
+- Qdrant (for vector search)
 
+### Installation
+
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <your-repo-url>
+cd nexusgov-ai
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Set up environment variables:
+```bash
+cp .env.example .env.local
+# Edit .env.local with your credentials
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. Run the development server:
+```bash
+npm run dev
+```
 
-## Learn More
+Open [http://localhost:3000](http://localhost:3000) with your browser.
 
-To learn more about Next.js, take a look at the following resources:
+### Required Environment Variables
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+See `.env.example` for the complete list. Key variables:
+- `OPENROUTER_API_KEY`: Your OpenRouter API key
+- `NEXT_PUBLIC_FIREBASE_*`: Firebase configuration (EU region)
+- `QDRANT_URL`: Vector database URL
+- `DATABASE_URL`: PostgreSQL connection string
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deployment
 
-## Deploy on Vercel
+This project auto-deploys to VPS when pushing to `main` branch. See [DEPLOYMENT.md](./DEPLOYMENT.md) for complete setup instructions.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+**Quick deploy:**
+1. Add `SSH_PRIVATE_KEY` to GitHub repository secrets
+2. Push to `main` branch
+3. GitHub Actions handles the rest
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Project Structure
+
+```
+nexusgov-ai/
+├── app/                    # Next.js App Router pages
+├── components/             # React components
+│   ├── ui/                # Reusable UI components
+│   ├── chat/              # Chat interface components
+│   ├── dashboard/         # Dashboard views
+│   └── admin/             # Admin panel components
+├── lib/                   # Core libraries
+│   ├── auth/              # Authentication logic
+│   ├── ai/                # AI model integrations
+│   ├── db/                # Database utilities
+│   └── utils/             # Utility functions
+├── types/                 # TypeScript type definitions
+├── hooks/                 # Custom React hooks
+└── public/                # Static assets
+```
+
+## Key Compliance Features
+
+### GDPR "Strict Mode"
+Restricts all AI requests to:
+- EU-hosted models (Azure Sweden, Mistral Europe)
+- Models with valid Data Processing Agreements (DPA)
+- Zero data retention policies
+
+### PII Screening
+Automatically detects and flags:
+- Swedish SSNs (personnummer): `YYYYMMDD-XXXX`
+- Names, addresses, phone numbers
+- Actions: Warn, Block, or Anonymize
+
+### Audit Trail
+Every interaction logged with:
+- User ID, Organization, Sub-unit
+- Model used, timestamp
+- PII-masked query/response
+- Data residency location
+
+## Development
+
+```bash
+# Run development server
+npm run dev
+
+# Run type checking
+npm run type-check
+
+# Run linter
+npm run lint
+
+# Build for production
+npm run build
+
+# Start production server
+npm start
+```
+
+## Contributing
+
+This is a public sector project focused on compliance and data sovereignty. Contributions must maintain GDPR compliance and security standards.
+
+## License
+
+[Specify your license]
+
+## Support
+
+For issues and questions, please contact your system administrator or open an issue in the repository.

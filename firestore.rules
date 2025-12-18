@@ -1,0 +1,113 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && getUserData().role == 'SUPER_ADMIN';
+    }
+
+    function isOrgAdmin(orgId) {
+      return isAuthenticated() &&
+             (getUserData().role == 'ORG_ADMIN' || getUserData().role == 'SUPER_ADMIN') &&
+             getUserData().organizationId == orgId;
+    }
+
+    function isUnitAdmin(orgId) {
+      return isAuthenticated() &&
+             (getUserData().role == 'UNIT_ADMIN' || getUserData().role == 'ORG_ADMIN' || getUserData().role == 'SUPER_ADMIN') &&
+             getUserData().organizationId == orgId;
+    }
+
+    function belongsToOrg(orgId) {
+      return isAuthenticated() && getUserData().organizationId == orgId;
+    }
+
+    // Organizations
+    match /organizations/{orgId} {
+      allow read: if belongsToOrg(orgId);
+      allow write: if isOrgAdmin(orgId) || isSuperAdmin();
+
+      // Sub-collections
+      match /budget_alerts/{alertId} {
+        allow read: if belongsToOrg(orgId);
+        allow write: if isOrgAdmin(orgId);
+      }
+    }
+
+    // Users
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+      allow create: if isAuthenticated();
+    }
+
+    // Conversations
+    match /conversations/{conversationId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+
+      // Messages sub-collection
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() && get(/databases/$(database)/documents/conversations/$(conversationId)).data.userId == request.auth.uid;
+        allow write: if isAuthenticated() && get(/databases/$(database)/documents/conversations/$(conversationId)).data.userId == request.auth.uid;
+      }
+    }
+
+    // Documents (for RAG)
+    match /documents/{documentId} {
+      // Global documents: readable by anyone in any org
+      // Unit documents: readable only by users in allowed units
+      // Private documents: readable only by uploader
+      allow read: if isAuthenticated() && (
+        resource.data.visibility == 'GLOBAL' ||
+        (resource.data.visibility == 'UNIT' && belongsToOrg(resource.data.organizationId)) ||
+        (resource.data.visibility == 'PRIVATE' && resource.data.uploadedBy == request.auth.uid)
+      );
+
+      allow create: if isAuthenticated() && request.resource.data.uploadedBy == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.uploadedBy == request.auth.uid;
+    }
+
+    // AI Assistants
+    match /assistants/{assistantId} {
+      // Public assistants: readable by everyone
+      // Private assistants: readable only by creator and org members
+      allow read: if isAuthenticated() && (
+        resource.data.isPublic == true ||
+        resource.data.createdBy == request.auth.uid ||
+        belongsToOrg(resource.data.organizationId)
+      );
+
+      allow create: if isAuthenticated() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.createdBy == request.auth.uid;
+    }
+
+    // Audit Logs (DPO access)
+    match /audit_logs/{logId} {
+      allow read: if isAuthenticated() && (
+        getUserData().role == 'DPO' ||
+        getUserData().role == 'SUPER_ADMIN' ||
+        isOrgAdmin(resource.data.organizationId)
+      );
+      allow write: if false; // Only server-side writes
+    }
+
+    // Meeting Transcripts
+    match /meetings/{meetingId} {
+      allow read: if isAuthenticated() && belongsToOrg(resource.data.organizationId);
+      allow create: if isAuthenticated() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.createdBy == request.auth.uid;
+    }
+  }
+}

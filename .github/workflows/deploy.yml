@@ -1,0 +1,59 @@
+name: Deploy NexusGov AI to VPS
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:  # Allows manual trigger from GitHub UI
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 65.109.239.13
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "🚀 Starting NexusGov AI deployment..."
+
+            # Create directory if it doesn't exist
+            mkdir -p /root/nexusgov-ai
+            cd /root/nexusgov-ai
+
+            # Initialize git repo if needed
+            if [ ! -d .git ]; then
+              git init
+              git remote add origin https://github.com/${{ github.repository }}.git
+            fi
+
+            echo "📥 Pulling latest changes from GitHub..."
+            git fetch origin
+            git reset --hard origin/${{ github.ref_name }}
+
+            echo "📦 Installing dependencies..."
+            npm install
+
+            echo "🔨 Building production app..."
+            npm run build
+
+            echo "🔄 Restarting PM2 service..."
+            pm2 delete nexusgov-ai 2>/dev/null || true
+            pm2 start npm --name "nexusgov-ai" -- start -- -p 3001
+
+            echo "✅ Deployment complete!"
+            pm2 status
+
+      - name: Notify deployment status
+        if: always()
+        run: |
+          if [ ${{ job.status }} == 'success' ]; then
+            echo "✅ Deployment successful!"
+          else
+            echo "❌ Deployment failed!"
+          fi
