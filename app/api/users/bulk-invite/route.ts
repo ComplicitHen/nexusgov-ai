@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase/config';
-import { collection, addDoc, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, Timestamp, updateDoc, doc } from 'firebase/firestore';
 import { UserInvitation, UserRole } from '@/types';
+import { sendInvitationEmail } from '@/lib/utils/email-service';
 import crypto from 'crypto';
 
 export const runtime = 'nodejs';
@@ -109,14 +110,41 @@ export async function POST(request: NextRequest) {
 
         console.log(`[Bulk Invite] Created invitation for ${inv.email} (ID: ${docRef.id})`);
 
-        results.push({
-          email: inv.email,
-          status: 'created',
-          inviteUrl,
-        });
+        // Send invitation email
+        try {
+          await sendInvitationEmail(
+            inv.email,
+            inviteUrl,
+            inv.organizationName || 'Unknown Organization',
+            inv.role,
+            inv.tokenLimit,
+            inv.budgetLimit
+          );
 
-        // TODO: Send invitation email
-        // await sendInvitationEmail(inv.email, inviteUrl, inv.organizationName);
+          // Update status to SENT
+          await updateDoc(doc(db, 'userInvitations', docRef.id), {
+            status: 'SENT',
+            sentAt: Timestamp.now(),
+          });
+
+          console.log(`[Bulk Invite] Email sent to ${inv.email}`);
+
+          results.push({
+            email: inv.email,
+            status: 'created',
+            inviteUrl,
+          });
+        } catch (emailError: any) {
+          console.error(`[Bulk Invite] Failed to send email to ${inv.email}:`, emailError);
+
+          // Keep invitation as PENDING if email fails
+          results.push({
+            email: inv.email,
+            status: 'created',
+            inviteUrl,
+            error: `Email failed: ${emailError.message}`,
+          });
+        }
 
       } catch (error: any) {
         console.error(`[Bulk Invite] Failed to create invitation for ${inv.email}:`, error);
