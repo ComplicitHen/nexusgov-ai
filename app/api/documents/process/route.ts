@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { doc, getDoc, updateDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { extractText, isSupportedFileType } from '@/lib/utils/text-extractor';
 import { chunkText, getChunkingStats } from '@/lib/utils/text-chunker';
 import { generateBatchEmbeddings, calculateEmbeddingCost } from '@/lib/utils/embeddings';
+import { upsertVectors } from '@/lib/vector/vector-store';
+import { isQdrantAvailable } from '@/lib/vector/qdrant-client';
+import { nanoid } from 'nanoid';
 
 export const runtime = 'nodejs'; // Need Node.js runtime for file processing libraries
 export const maxDuration = 300; // 5 minutes for large documents
@@ -95,28 +98,50 @@ export async function POST(request: NextRequest) {
     const embeddingResult = await generateBatchEmbeddings(chunkTexts);
     console.log(`Generated ${embeddingResult.embeddings.length} embeddings`);
 
-    // 6. Store chunks with embeddings in Firestore (temporary until Qdrant integration)
-    console.log('Storing chunks...');
-    const chunksCollection = collection(db, 'documents', documentId, 'chunks');
+    // 6. Store chunks with embeddings in Qdrant
+    console.log('Storing vectors in Qdrant...');
 
-    const chunkPromises = chunks.map(async (chunk, index) => {
-      const chunkData = {
+    // Check if Qdrant is available
+    const qdrantAvailable = await isQdrantAvailable();
+
+    if (!qdrantAvailable) {
+      console.warn('Qdrant not available, skipping vector storage');
+      await updateDoc(docRef, {
+        status: 'ERROR',
+        error: 'Qdrant vector database not configured or unavailable',
+        processedAt: serverTimestamp(),
+      });
+
+      return NextResponse.json(
+        { error: 'Vector database not available' },
+        { status: 500 }
+      );
+    }
+
+    // Prepare vector points for Qdrant
+    const vectorPoints = chunks.map((chunk, index) => ({
+      id: `${documentId}_${chunk.index}_${nanoid(8)}`,
+      vector: embeddingResult.embeddings[index],
+      payload: {
         documentId,
         organizationId,
         content: chunk.content,
-        index: chunk.index,
-        startChar: chunk.startChar,
-        endChar: chunk.endChar,
-        tokenCount: chunk.tokenCount,
-        embedding: embeddingResult.embeddings[index],
-        embeddingModel: embeddingResult.model,
-        createdAt: serverTimestamp(),
-      };
+        chunkIndex: chunk.index,
+        fileName,
+        fileType,
+        uploadedBy: docData.uploadedBy,
+        visibility: docData.visibility || 'PRIVATE',
+        metadata: {
+          startChar: chunk.startChar,
+          endChar: chunk.endChar,
+          tokenCount: chunk.tokenCount,
+        },
+      },
+    }));
 
-      return addDoc(chunksCollection, chunkData);
-    });
-
-    await Promise.all(chunkPromises);
+    // Upload to Qdrant
+    await upsertVectors(vectorPoints);
+    console.log(`Uploaded ${vectorPoints.length} vectors to Qdrant`);
 
     // 7. Calculate costs
     const embeddingCost = calculateEmbeddingCost(embeddingResult.totalTokens);

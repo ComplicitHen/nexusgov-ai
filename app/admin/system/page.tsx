@@ -103,6 +103,42 @@ export default function SystemStatusPage() {
       });
     }
 
+    // Check Qdrant Vector Database
+    try {
+      const startTime = Date.now();
+      const response = await fetch('/api/search/rag', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: 'health check',
+          organizationId: 'test',
+          userId: 'test',
+          limit: 1,
+        }),
+      });
+
+      // Even if search returns error (no docs), Qdrant is operational if it responds
+      if (response.status === 503) {
+        results.push({
+          service: 'Qdrant Vector DB',
+          status: 'down',
+          message: 'Not configured',
+        });
+      } else {
+        results.push({
+          service: 'Qdrant Vector DB',
+          status: 'operational',
+          responseTime: Date.now() - startTime,
+        });
+      }
+    } catch (error: any) {
+      results.push({
+        service: 'Qdrant Vector DB',
+        status: 'down',
+        message: error.message,
+      });
+    }
+
     setStatuses(results);
     setLastChecked(new Date());
     setLoading(false);
