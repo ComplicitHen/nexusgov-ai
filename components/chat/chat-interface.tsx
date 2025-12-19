@@ -9,6 +9,7 @@ import { useConversation } from '@/hooks/use-conversation';
 import { useAuth } from '@/lib/auth/auth-context';
 import { Message } from '@/types';
 import { CitationCard } from './citation-card';
+import { getRecommendedModel } from '@/lib/utils/query-analyzer';
 
 interface ChatInterfaceProps {
   conversationId?: string;
@@ -23,6 +24,8 @@ export function ChatInterface({ conversationId, onConversationCreated }: ChatInt
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState('mistral-large-eu');
+  const [autoSelectModel, setAutoSelectModel] = useState(true);
+  const [modelSelectionReasoning, setModelSelectionReasoning] = useState<string | null>(null);
   const [enablePIIScreening, setEnablePIIScreening] = useState(true);
   const [enableRAG, setEnableRAG] = useState(true);
   const [piiWarning, setPIIWarning] = useState<string | null>(null);
@@ -85,12 +88,23 @@ export function ChatInterface({ conversationId, onConversationCreated }: ChatInt
     setInput('');
     setIsLoading(true);
     setPIIWarning(null);
+    setModelSelectionReasoning(null);
+
+    // Auto-select model if enabled
+    let modelToUse = selectedModel;
+    if (autoSelectModel) {
+      const availableModels = AI_MODELS.filter(m => m.isActive).map(m => m.id);
+      const recommendation = getRecommendedModel(userMessageContent, availableModels);
+      modelToUse = recommendation.modelId;
+      setModelSelectionReasoning(recommendation.reasoning);
+      setSelectedModel(modelToUse); // Update selected model in UI
+    }
 
     try {
       // Create conversation if needed
       let convId = conversationId;
       if (!convId) {
-        convId = await createNewConversation(selectedModel);
+        convId = await createNewConversation(modelToUse);
         onConversationCreated?.(convId);
       }
 
@@ -121,7 +135,7 @@ export function ChatInterface({ conversationId, onConversationCreated }: ChatInt
             role: m.role,
             content: m.content,
           })),
-          modelId: selectedModel,
+          modelId: modelToUse,
           enablePIIScreening,
           enableRAG,
           organizationId: user.organizationId,
@@ -206,11 +220,16 @@ export function ChatInterface({ conversationId, onConversationCreated }: ChatInt
           {/* Model Selector */}
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-gray-700">Modell:</label>
+              <label className="text-sm font-medium text-gray-700">
+                {autoSelectModel ? 'Nuvarande:' : 'Modell:'}
+              </label>
               <select
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                disabled={autoSelectModel}
+                className={`px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 ${
+                  autoSelectModel ? 'bg-gray-100 cursor-not-allowed' : ''
+                }`}
               >
                 {AI_MODELS.filter((m) => m.isActive).map((model) => (
                   <option key={model.id} value={model.id}>
@@ -256,9 +275,34 @@ export function ChatInterface({ conversationId, onConversationCreated }: ChatInt
               />
               <span className="text-sm text-gray-700">RAG (Dokument)</span>
             </label>
+
+            {/* Auto-Select Model Toggle */}
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={autoSelectModel}
+                onChange={(e) => setAutoSelectModel(e.target.checked)}
+                className="rounded"
+              />
+              <span className="text-sm text-gray-700">Auto-välj modell</span>
+            </label>
           </div>
         </div>
       </div>
+
+      {/* Model Selection Reasoning */}
+      {autoSelectModel && modelSelectionReasoning && (
+        <div className="bg-blue-50 border-b border-blue-200 px-4 py-2">
+          <div className="max-w-4xl mx-auto flex items-center gap-2">
+            <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-xs text-blue-800">
+              <strong>Auto-vald modell:</strong> {modelSelectionReasoning}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4">
