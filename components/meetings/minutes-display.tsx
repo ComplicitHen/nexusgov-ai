@@ -1,17 +1,43 @@
 'use client';
 
-import { MeetingMinutes, ActionItem } from '@/types';
+import { MeetingMinutes, ActionItem, Meeting } from '@/types';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { exportMeetingAsPDF, exportMeetingAsDOCX } from '@/lib/utils/meeting-export';
 
 interface MinutesDisplayProps {
   minutes: MeetingMinutes;
-  meetingTitle: string;
+  meeting: Meeting;
 }
 
-export function MinutesDisplay({ minutes, meetingTitle }: MinutesDisplayProps) {
+export function MinutesDisplay({ minutes, meeting }: MinutesDisplayProps) {
   const [activeTab, setActiveTab] = useState<'summary' | 'full' | 'actions' | 'decisions'>('summary');
   const [actionItems, setActionItems] = useState<ActionItem[]>(minutes.actionItems);
+  const [exporting, setExporting] = useState<'pdf' | 'docx' | null>(null);
+
+  const handleExportPDF = async () => {
+    setExporting('pdf');
+    try {
+      await exportMeetingAsPDF(meeting, minutes);
+    } catch (error) {
+      console.error('PDF export error:', error);
+      alert('Ett fel uppstod vid PDF-export');
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handleExportDOCX = async () => {
+    setExporting('docx');
+    try {
+      await exportMeetingAsDOCX(meeting, minutes);
+    } catch (error) {
+      console.error('DOCX export error:', error);
+      alert('Ett fel uppstod vid DOCX-export');
+    } finally {
+      setExporting(null);
+    }
+  };
 
   const toggleActionItem = (index: number) => {
     const updated = [...actionItems];
@@ -52,7 +78,7 @@ export function MinutesDisplay({ minutes, meetingTitle }: MinutesDisplayProps) {
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
       {/* Header */}
       <div className="px-6 py-4 border-b border-gray-200">
-        <h2 className="text-xl font-semibold text-gray-900">{meetingTitle}</h2>
+        <h2 className="text-xl font-semibold text-gray-900">{meeting.title}</h2>
         <p className="text-sm text-gray-500 mt-1">
           Genererat {minutes.generatedAt.toLocaleDateString('sv-SE')} med {minutes.generatedBy}
         </p>
@@ -251,35 +277,63 @@ export function MinutesDisplay({ minutes, meetingTitle }: MinutesDisplayProps) {
         <div className="flex justify-end gap-2">
           <Button
             variant="outline"
-            onClick={() => {
-              // TODO: Implement PDF export
-              alert('PDF-export kommer snart!');
-            }}
+            onClick={handleExportPDF}
+            disabled={exporting !== null}
           >
-            <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                fillRule="evenodd"
-                d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z"
-                clipRule="evenodd"
-              />
-            </svg>
-            Exportera som PDF
+            {exporting === 'pdf' ? (
+              <>
+                <svg className="w-4 h-4 mr-2 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+                Exporterar...
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path
+                    fillRule="evenodd"
+                    d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                Exportera som PDF
+              </>
+            )}
           </Button>
           <Button
             variant="outline"
-            onClick={() => {
-              // TODO: Implement DOCX export
-              alert('DOCX-export kommer snart!');
-            }}
+            onClick={handleExportDOCX}
+            disabled={exporting !== null}
           >
-            <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                fillRule="evenodd"
-                d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z"
-                clipRule="evenodd"
-              />
-            </svg>
-            Exportera som DOCX
+            {exporting === 'docx' ? (
+              <>
+                <svg className="w-4 h-4 mr-2 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+                Exporterar...
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path
+                    fillRule="evenodd"
+                    d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                Exportera som DOCX
+              </>
+            )}
           </Button>
         </div>
       </div>

@@ -241,7 +241,7 @@ export function MeetingViewer({ meeting, onClose }: MeetingViewerProps) {
               <p className="text-gray-600">Laddar mötesprotokoll...</p>
             </div>
           ) : minutes ? (
-            <MinutesDisplay minutes={minutes} meetingTitle={meeting.title} />
+            <MinutesDisplay minutes={minutes} meeting={meeting} />
           ) : (
             <div className="bg-white rounded-lg shadow-sm p-12 text-center border border-gray-200">
               <p className="text-gray-600">Kunde inte ladda mötesprotokoll.</p>
