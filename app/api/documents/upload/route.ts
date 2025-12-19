@@ -43,22 +43,21 @@ export async function POST(request: NextRequest) {
 
     const docRef = await addDoc(collection(db, 'documents'), docData);
 
-    // TODO: Trigger document processing
-    // This would normally call a Cloud Function or background job to:
-    // 1. Download the file
-    // 2. Extract text (PDF, DOCX, etc.)
-    // 3. Chunk the text
-    // 4. Create embeddings
-    // 5. Store in Qdrant
-    // 6. Update document status to 'READY'
-
-    // For now, we'll just simulate success
-    // You can implement the processing logic later
+    // Trigger document processing asynchronously
+    // We don't await this to avoid timeout issues with large files
+    const baseUrl = request.nextUrl.origin;
+    fetch(`${baseUrl}/api/documents/process`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ documentId: docRef.id }),
+    }).catch((error) => {
+      console.error('Failed to trigger document processing:', error);
+    });
 
     return NextResponse.json({
       success: true,
       documentId: docRef.id,
-      message: 'Document uploaded successfully. Processing will begin shortly.',
+      message: 'Document uploaded successfully. Processing has been started.',
     });
   } catch (error: any) {
     console.error('Document upload error:', error);
