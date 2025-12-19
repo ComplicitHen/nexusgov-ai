@@ -8,6 +8,7 @@ import { detectPII, anonymizePII, getPIIWarningMessage } from '@/lib/utils/pii-d
 import { useConversation } from '@/hooks/use-conversation';
 import { useAuth } from '@/lib/auth/auth-context';
 import { Message } from '@/types';
+import { CitationCard } from './citation-card';
 
 interface ChatInterfaceProps {
   conversationId?: string;
@@ -23,7 +24,9 @@ export function ChatInterface({ conversationId, onConversationCreated }: ChatInt
   const [isLoading, setIsLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState('mistral-large-eu');
   const [enablePIIScreening, setEnablePIIScreening] = useState(true);
+  const [enableRAG, setEnableRAG] = useState(true);
   const [piiWarning, setPIIWarning] = useState<string | null>(null);
+  const [messageSources, setMessageSources] = useState<Map<string, any>>(new Map());
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Initialize with welcome message
@@ -120,6 +123,9 @@ export function ChatInterface({ conversationId, onConversationCreated }: ChatInt
           })),
           modelId: selectedModel,
           enablePIIScreening,
+          enableRAG,
+          organizationId: user.organizationId,
+          userId: user.id,
         }),
       });
 
@@ -141,7 +147,7 @@ export function ChatInterface({ conversationId, onConversationCreated }: ChatInt
         }
       } else {
         // Save assistant message to Firestore
-        await addMessageToConversation(convId, {
+        const assistantMessageId = await addMessageToConversation(convId, {
           role: 'assistant',
           content: data.message.content,
           tokens: {
@@ -152,6 +158,15 @@ export function ChatInterface({ conversationId, onConversationCreated }: ChatInt
           piiDetected: data.piiDetection?.hasPII || false,
           piiWarning: data.piiWarning,
         });
+
+        // Store RAG sources if present
+        if (data.ragSources && data.ragSources.length > 0) {
+          setMessageSources((prev) => {
+            const newMap = new Map(prev);
+            newMap.set(assistantMessageId, data.ragSources);
+            return newMap;
+          });
+        }
       }
     } catch (error: any) {
       const errorMessage: Message = {
@@ -230,6 +245,17 @@ export function ChatInterface({ conversationId, onConversationCreated }: ChatInt
               />
               <span className="text-sm text-gray-700">PII-kontroll</span>
             </label>
+
+            {/* RAG Toggle */}
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={enableRAG}
+                onChange={(e) => setEnableRAG(e.target.checked)}
+                className="rounded"
+              />
+              <span className="text-sm text-gray-700">RAG (Dokument)</span>
+            </label>
           </div>
         </div>
       </div>
@@ -260,6 +286,11 @@ export function ChatInterface({ conversationId, onConversationCreated }: ChatInt
                     Tokens: {message.tokens?.input || 0} in, {message.tokens?.output || 0} out
                     | Kostnad: {(message.cost || 0).toFixed(4)} SEK
                   </div>
+                )}
+
+                {/* Display citations for RAG-enhanced messages */}
+                {message.role === 'assistant' && messageSources.has(message.id) && (
+                  <CitationCard sources={messageSources.get(message.id)} />
                 )}
 
                 {message.piiWarning && (
