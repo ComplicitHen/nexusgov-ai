@@ -212,6 +212,28 @@ export default function DocumentsPage() {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
+  const handleRetryProcessing = async (documentId: string) => {
+    try {
+      setMessage({ type: 'success', text: 'Startar om bearbetning...' });
+
+      await fetch('/api/documents/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documentId }),
+      });
+
+      setMessage({ type: 'success', text: 'Bearbetning påbörjad!' });
+
+      // Reload documents after a short delay
+      setTimeout(() => loadDocuments(), 2000);
+    } catch (error: any) {
+      setMessage({
+        type: 'error',
+        text: `Kunde inte starta om bearbetning: ${error.message}`,
+      });
+    }
+  };
+
   return (
     <ProtectedRoute>
       <div className="flex flex-col h-screen bg-gray-50">
@@ -376,20 +398,41 @@ export default function DocumentsPage() {
                             )}
                           </div>
 
-                          {doc.vectorCount > 0 && (
+                          {doc.status === 'READY' && doc.vectorCount > 0 && (
                             <p className="text-xs text-gray-500 mt-1">
-                              {doc.vectorCount} vektorinbäddningar skapade
+                              {doc.vectorCount} vektorinbäddningar skapade med {doc.embeddingModel}
                             </p>
                           )}
 
-                          {doc.processingError && (
+                          {doc.status === 'ERROR' && doc.processingError && (
                             <p className="text-xs text-red-600 mt-1">
                               Fel: {doc.processingError}
+                            </p>
+                          )}
+
+                          {doc.status === 'ERROR' && !doc.processingError && (
+                            <p className="text-xs text-red-600 mt-1">
+                              Bearbetning misslyckades. Försök igen.
+                            </p>
+                          )}
+
+                          {doc.metadata?.extractedTextLength && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              {doc.metadata.extractedTextLength.toLocaleString()} tecken extraherade
                             </p>
                           )}
                         </div>
 
                         <div className="flex gap-2">
+                          {doc.status === 'ERROR' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleRetryProcessing(doc.id)}
+                            >
+                              Försök igen
+                            </Button>
+                          )}
                           <Button variant="ghost" size="sm">
                             Visa
                           </Button>
