@@ -58,6 +58,17 @@ export function NavLinks() {
         Möten
       </Link>
 
+      <Link
+        href="/assistants"
+        className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+          isActive('/assistants')
+            ? 'bg-blue-100 text-blue-700'
+            : 'text-gray-700 hover:bg-gray-100'
+        }`}
+      >
+        Assistenter
+      </Link>
+
       {isAdmin && (
         <Link
           href="/admin"
