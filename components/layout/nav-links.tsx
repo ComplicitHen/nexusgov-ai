@@ -28,12 +28,23 @@ export function NavLinks() {
       <Link
         href="/"
         className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-          isActive('/') && !pathname.startsWith('/dashboard') && !pathname.startsWith('/admin') && !pathname.startsWith('/settings')
+          isActive('/') && !pathname.startsWith('/dashboard') && !pathname.startsWith('/admin') && !pathname.startsWith('/settings') && !pathname.startsWith('/documents')
             ? 'bg-blue-100 text-blue-700'
             : 'text-gray-700 hover:bg-gray-100'
         }`}
       >
         Chat
+      </Link>
+
+      <Link
+        href="/documents"
+        className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+          isActive('/documents')
+            ? 'bg-blue-100 text-blue-700'
+            : 'text-gray-700 hover:bg-gray-100'
+        }`}
+      >
+        Dokument
       </Link>
 
       {isAdmin && (
