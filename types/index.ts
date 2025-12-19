@@ -254,33 +254,50 @@ export interface AuditLog {
 }
 
 /**
- * Meeting Transcription
+ * Meeting with full lifecycle tracking
  */
-export interface MeetingTranscript {
+export interface Meeting {
   id: string;
   organizationId: string;
-  createdBy: string;
-  createdAt: Date;
-
-  // Audio file info
+  uploadedBy: string;
+  title: string;
   fileName: string;
+  fileType: string; // 'mp3', 'wav', 'm4a', 'ogg'
   fileSize: number;
-  duration: number; // in seconds
+  duration?: number; // in seconds (set after transcription)
+  uploadedAt: Date;
+  status: 'UPLOADING' | 'TRANSCRIBING' | 'PROCESSING' | 'READY' | 'ERROR';
+  audioURL: string; // Firebase Storage URL
+  transcriptURL?: string;
+  transcript?: string;
+  processingError?: string;
 
-  // Transcription
-  status: 'PROCESSING' | 'COMPLETED' | 'FAILED';
-  transcriptionText: string;
+  // Processing metadata
+  transcriptionCost?: number; // in SEK
+  processingCost?: number; // in SEK
+  totalCost?: number; // transcription + AI processing
 
-  // Speaker diarization
-  speakers?: Speaker[];
+  // Optional metadata
+  metadata?: {
+    participants?: string[];
+    meetingDate?: Date;
+    location?: string;
+    language?: string;
+  };
+}
 
-  // AI-generated outputs
-  meetingMinutes?: string;
-  actionItems?: ActionItem[];
-  decisionLog?: Decision[];
-
-  // Language
-  language: string;
+/**
+ * Meeting Minutes and Analysis
+ */
+export interface MeetingMinutes {
+  meetingId: string;
+  summary: string; // Executive summary
+  actionItems: ActionItem[];
+  decisions: string[];
+  topics: string[]; // Key topics discussed
+  fullMinutes: string; // Full formatted minutes
+  generatedAt: Date;
+  generatedBy: string; // model ID used
 }
 
 export interface Speaker {
@@ -294,11 +311,12 @@ export interface Speaker {
 }
 
 export interface ActionItem {
-  id: string;
+  id?: string;
   description: string;
-  assignedTo?: string;
+  assignee?: string;
   dueDate?: Date;
   priority: 'HIGH' | 'MEDIUM' | 'LOW';
+  completed?: boolean;
 }
 
 export interface Decision {
