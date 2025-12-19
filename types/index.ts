@@ -236,21 +236,130 @@ export interface AuditLog {
   id: string;
   timestamp: Date;
   userId: string;
+  userName: string; // For easier display
+  userEmail: string;
   organizationId: string;
+  organizationName: string;
 
   // Action details
-  action: 'CHAT_MESSAGE' | 'DOCUMENT_UPLOAD' | 'MODEL_SWITCH' | 'SETTINGS_CHANGE';
-  modelId?: string;
-  dataResidency: DataResidency;
+  action:
+    | 'CHAT_MESSAGE'
+    | 'DOCUMENT_UPLOAD'
+    | 'DOCUMENT_DELETE'
+    | 'DOCUMENT_DOWNLOAD'
+    | 'MEETING_UPLOAD'
+    | 'MEETING_TRANSCRIBE'
+    | 'MEETING_EXPORT'
+    | 'KLARSPRAK_SIMPLIFY'
+    | 'ASSISTANT_CREATE'
+    | 'ASSISTANT_USE'
+    | 'MODEL_SWITCH'
+    | 'SETTINGS_CHANGE'
+    | 'USER_INVITE'
+    | 'USER_DELETE'
+    | 'BULK_OPERATION';
 
-  // Masked content (PII removed)
+  actionDescription: string; // Human-readable description
+
+  // Model & compliance
+  modelId?: string;
+  modelName?: string;
+  dataResidency: DataResidency;
+  complianceMode: ComplianceMode;
+
+  // Masked content (PII removed for storage)
   maskedQuery?: string;
   maskedResponse?: string;
 
-  // Metadata
-  tokens?: number;
-  cost?: number;
+  // PII Detection
   piiDetected: boolean;
+  piiTypes?: string[]; // e.g., ['PERSON_NAME', 'SSN', 'EMAIL']
+  piiAction?: PIIAction; // WARN, BLOCK, ANONYMIZE
+
+  // Cost & usage
+  tokens?: number;
+  cost?: number; // in SEK
+
+  // Security metadata
+  ipAddress?: string;
+  userAgent?: string;
+
+  // Reference IDs for linking
+  conversationId?: string;
+  documentId?: string;
+  meetingId?: string;
+  assistantId?: string;
+
+  // Status
+  status: 'SUCCESS' | 'FAILED' | 'BLOCKED';
+  errorMessage?: string;
+}
+
+/**
+ * Bulk User Invitation
+ */
+export interface UserInvitation {
+  id: string;
+  email: string;
+  organizationId: string;
+  organizationName: string;
+  role: UserRole;
+  invitedBy: string; // userId
+  invitedAt: Date;
+
+  // Token limits
+  tokenLimit?: number; // Monthly token limit
+  budgetLimit?: number; // Monthly budget in SEK
+
+  // Status
+  status: 'PENDING' | 'SENT' | 'ACCEPTED' | 'EXPIRED' | 'REVOKED';
+  sentAt?: Date;
+  acceptedAt?: Date;
+  expiresAt: Date;
+
+  // Invitation link
+  inviteToken: string;
+  inviteUrl: string;
+}
+
+/**
+ * Bulk Operation Status
+ */
+export interface BulkOperation {
+  id: string;
+  userId: string;
+  organizationId: string;
+  createdAt: Date;
+
+  // Operation type
+  type: 'DOCUMENT_PROCESS' | 'MEETING_TRANSCRIBE' | 'TEXT_SIMPLIFY' | 'USER_INVITE';
+
+  // Progress tracking
+  status: 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'PARTIAL';
+  totalItems: number;
+  processedItems: number;
+  successfulItems: number;
+  failedItems: number;
+
+  // Results
+  results?: BulkOperationResult[];
+
+  // Cost summary
+  totalCost: number;
+  totalTokens: number;
+
+  // Timing
+  startedAt?: Date;
+  completedAt?: Date;
+}
+
+export interface BulkOperationResult {
+  itemId: string;
+  itemName: string;
+  status: 'SUCCESS' | 'FAILED';
+  errorMessage?: string;
+  cost?: number;
+  tokens?: number;
 }
 
 /**
